@@ -1,6 +1,6 @@
  game in Visual Stusio forms 
-## Chekers
-# autor 
+# Chekers
+## autor 
 Anton
 # language 
 с#
