@@ -2,7 +2,7 @@
 # Chekers
 ## autor 
 Anton
-# language 
+## language 
 с#
-# platform 
+## platform 
 Visual studio
