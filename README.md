@@ -1,5 +1,5 @@
  game in Visual Stusio forms 
-# Chess
+# Chekers
 autor Anton
 language с#
 platform Visual studio
