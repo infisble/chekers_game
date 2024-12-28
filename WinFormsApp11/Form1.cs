@@ -355,10 +355,7 @@ namespace WinFormsApp11
                     {
                         var button2 = Controls.Find("button" + on_clicked, true).FirstOrDefault() as Button;
                         button2.Image = null;
-
-
-
-                        button2 = Controls.Find("button" + p, true).FirstOrDefault() as Button;
+                      button2 = Controls.Find("button" + p, true).FirstOrDefault() as Button;
                         if (player == 1)
                             button2.Image = Properties.Resources.white;
                         else
@@ -420,10 +417,7 @@ namespace WinFormsApp11
                         set_hid_white(ii, jj, num);
                         p = 1;
                     }
-
-
-
-                    else
+                  else
                     {
                         int num = (ii - 1) * 8 + (jj - 1);
                         set_hid_blask(ii, jj, num);
