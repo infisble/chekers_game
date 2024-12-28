@@ -941,9 +941,6 @@ namespace WinFormsApp11
                             button.BackColor = Color.Yellow;
                             button.Enabled = true;
                             try_to_beat = true;
-
-
-
                             num = (ii + 1) * 8 + (jj + 1);
 
                             button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
@@ -978,19 +975,7 @@ namespace WinFormsApp11
                 }
             }
 
-
-
-
-
-
-
-
-
-
-
-
-
-            return try_to_beat;
+  return try_to_beat;
         }
 
         private bool is_queen(int num)
@@ -999,7 +984,7 @@ namespace WinFormsApp11
                 var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
                 button.Text = "D";
                 int ii = num / 8, jj = num % 8;
-              //  label1.Text = num.ToString();
+       
                 if (player == 1)
                 {
                     map[ii, jj] = 3;
