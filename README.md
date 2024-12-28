@@ -1,7 +1,7 @@
  game in Visual Stusio forms 
 # Chekers
 ## autor 
-Anton
+Anton aka Infisble
 ## language 
 с#
 ## platform 
