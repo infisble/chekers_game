@@ -1,3 +1,4 @@
+using WinFormsApp11.Application;
 using WinFormsApp11.Game;
 
 namespace WinFormsApp11;
@@ -11,10 +12,7 @@ public partial class Form1 : Form
     private static readonly Color TargetSquareColor = Color.FromArgb(245, 208, 66);
 
     private readonly Button[] _boardButtons;
-    private readonly CheckersGame _game;
-
-    private Position? _selectedPosition;
-    private List<Move> _selectedMoves = new();
+    private readonly CheckersSession _session;
 
     public Form1()
     {
@@ -23,8 +21,7 @@ public partial class Form1 : Form
         _boardButtons = LoadBoardButtons();
         ConfigureBoardButtons();
 
-        _game = new CheckersGame();
-        SetStatus($"Ход: {ColorText(_game.CurrentPlayer)}");
+        _session = new CheckersSession();
         Render();
     }
 
@@ -68,154 +65,65 @@ public partial class Form1 : Form
             return;
         }
 
-        HandleBoardClick(Position.FromIndex(index));
-    }
-
-    private void HandleBoardClick(Position position)
-    {
-        if (_game.IsFinished)
-        {
-            return;
-        }
-
-        var selectedMove = _selectedMoves.FirstOrDefault(move => move.To == position);
-        if (_selectedPosition.HasValue && selectedMove is not null)
-        {
-            if (_game.ApplyMove(selectedMove))
-            {
-                if (_game.IsFinished)
-                {
-                    ClearSelection();
-                    SetStatus($"Победа: {ColorText(_game.Winner!.Value)}");
-                }
-                else if (_game.ForcedCapturePiece.HasValue)
-                {
-                    SelectPiece(_game.ForcedCapturePiece.Value);
-                    SetStatus($"Продолжите взятие: {ColorText(_game.CurrentPlayer)}");
-                }
-                else
-                {
-                    ClearSelection();
-                    SetStatus($"Ход: {ColorText(_game.CurrentPlayer)}");
-                }
-            }
-
-            Render();
-            return;
-        }
-
-        var piece = _game.Board.GetPiece(position);
-        var selectable = _game.GetSelectablePieces();
-        if (piece.HasValue && piece.Value.Color == _game.CurrentPlayer && selectable.Contains(position))
-        {
-            SelectPiece(position);
-
-            var captureOnly = _selectedMoves.Any(static move => move.IsCapture);
-            SetStatus(captureOnly
-                ? $"Выбрана фигура: обязательное взятие ({_selectedMoves.Count} вариантов)"
-                : $"Выбрана фигура: доступно ходов {_selectedMoves.Count}");
-        }
-        else
-        {
-            ClearSelection();
-            SetStatus($"Ход: {ColorText(_game.CurrentPlayer)}");
-        }
-
+        _session.ClickCell(Position.FromIndex(index));
         Render();
-    }
-
-    private void SelectPiece(Position position)
-    {
-        _selectedPosition = position;
-        _selectedMoves = _game.GetLegalMoves(position).ToList();
-    }
-
-    private void ClearSelection()
-    {
-        _selectedPosition = null;
-        _selectedMoves = new List<Move>();
     }
 
     private void Render()
     {
-        RenderBoard();
-        HighlightLegalState();
+        var presentation = _session.BuildPresentation();
+        label1.Text = presentation.StatusText;
+        RenderBoard(presentation);
     }
 
-    private void RenderBoard()
+    private void RenderBoard(BoardPresentation presentation)
     {
-        for (var row = 0; row < Position.BoardSize; row++)
+        foreach (var cell in presentation.Cells)
         {
-            for (var column = 0; column < Position.BoardSize; column++)
+            var button = _boardButtons[cell.Position.ToIndex()];
+
+            button.BackColor = cell.IsDarkSquare ? DarkSquareColor : LightSquareColor;
+            button.FlatAppearance.BorderSize = 1;
+            button.FlatAppearance.BorderColor = cell.IsDarkSquare
+                ? Color.FromArgb(81, 52, 29)
+                : Color.FromArgb(208, 191, 150);
+
+            button.ForeColor = Color.Black;
+            button.Image = null;
+            button.Text = string.Empty;
+
+            if (cell.Piece.HasValue)
             {
-                var position = new Position(row, column);
-                var button = _boardButtons[position.ToIndex()];
-
-                var isDarkSquare = (row + column) % 2 == 1;
-                button.BackColor = isDarkSquare ? DarkSquareColor : LightSquareColor;
-                button.FlatAppearance.BorderSize = 1;
-                button.FlatAppearance.BorderColor = isDarkSquare
-                    ? Color.FromArgb(81, 52, 29)
-                    : Color.FromArgb(208, 191, 150);
-
-                button.ForeColor = Color.Black;
-                button.Image = null;
-                button.Text = string.Empty;
-
-                var piece = _game.Board.GetPiece(position);
-                if (!piece.HasValue)
-                {
-                    continue;
-                }
-
-                button.Image = piece.Value.Color == PieceColor.White
+                button.Image = cell.Piece.Value.Color == PieceColor.White
                     ? Properties.Resources.white
                     : Properties.Resources.black;
 
-                if (piece.Value.Kind == PieceKind.King)
+                if (cell.Piece.Value.Kind == PieceKind.King)
                 {
                     button.Text = "K";
-                    button.ForeColor = piece.Value.Color == PieceColor.White ? Color.Black : Color.White;
+                    button.ForeColor = cell.Piece.Value.Color == PieceColor.White ? Color.Black : Color.White;
                 }
             }
+
+            if (cell.IsSelectable)
+            {
+                button.FlatAppearance.BorderSize = 3;
+                button.FlatAppearance.BorderColor = SelectableBorderColor;
+            }
+
+            if (cell.IsSelected)
+            {
+                button.FlatAppearance.BorderSize = 4;
+                button.FlatAppearance.BorderColor = SelectedBorderColor;
+            }
+
+            if (cell.IsTarget)
+            {
+                button.BackColor = TargetSquareColor;
+                button.FlatAppearance.BorderSize = 3;
+                button.FlatAppearance.BorderColor = SelectedBorderColor;
+            }
         }
-    }
-
-    private void HighlightLegalState()
-    {
-        foreach (var position in _game.GetSelectablePieces())
-        {
-            var button = _boardButtons[position.ToIndex()];
-            button.FlatAppearance.BorderSize = 3;
-            button.FlatAppearance.BorderColor = SelectableBorderColor;
-        }
-
-        if (!_selectedPosition.HasValue)
-        {
-            return;
-        }
-
-        var selectedButton = _boardButtons[_selectedPosition.Value.ToIndex()];
-        selectedButton.FlatAppearance.BorderSize = 4;
-        selectedButton.FlatAppearance.BorderColor = SelectedBorderColor;
-
-        foreach (var move in _selectedMoves)
-        {
-            var targetButton = _boardButtons[move.To.ToIndex()];
-            targetButton.BackColor = TargetSquareColor;
-            targetButton.FlatAppearance.BorderSize = 3;
-            targetButton.FlatAppearance.BorderColor = SelectedBorderColor;
-        }
-    }
-
-    private void SetStatus(string text)
-    {
-        label1.Text = text;
-    }
-
-    private static string ColorText(PieceColor color)
-    {
-        return color == PieceColor.White ? "белые" : "черные";
     }
 
     private void button1_Click(object sender, EventArgs e)
