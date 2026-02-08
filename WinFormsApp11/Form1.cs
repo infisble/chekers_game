@@ -1,1205 +1,252 @@
-using System;
-using System.Numerics;
-using System.Reflection;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using WinFormsApp11.Game;
 
-namespace WinFormsApp11
+namespace WinFormsApp11;
+
+public partial class Form1 : Form
 {
-    public partial class Form1 : Form
+    private static readonly Color LightSquareColor = Color.FromArgb(242, 229, 194);
+    private static readonly Color DarkSquareColor = Color.FromArgb(116, 78, 49);
+    private static readonly Color SelectableBorderColor = Color.FromArgb(80, 153, 76);
+    private static readonly Color SelectedBorderColor = Color.FromArgb(37, 99, 235);
+    private static readonly Color TargetSquareColor = Color.FromArgb(245, 208, 66);
+
+    private readonly Button[] _boardButtons;
+    private readonly CheckersGame _game;
+
+    private Position? _selectedPosition;
+    private List<Move> _selectedMoves = new();
+
+    public Form1()
     {
-        bool try_to_beat = false;
-        int p = 0;
-        int on_clicked;
-        bool try_to_qwn_beat = false;
-        int player;
-        Image image_b;
-        Image image_w;
-        int[,] map = new int[8, 8] {
-                { 0,1,0,1,0,1,0,1 },
-                { 1,0,1,0,1,0,1,0 },
-                { 0,1,0,1,0,1,0,1 },
-                { 0,0,0,0,0,0,0,0 },
-                { 0,0,0,0,0,0,0,0 },
-                { 2,0,2,0,2,0,2,0 },
-                { 0,2,0,2,0,2,0,2 },
-                { 2,0,2,0,2,0,2,0 }
-            };
-        public Form1()
+        InitializeComponent();
+
+        _boardButtons = LoadBoardButtons();
+        ConfigureBoardButtons();
+
+        _game = new CheckersGame();
+        SetStatus($"Ход: {ColorText(_game.CurrentPlayer)}");
+        Render();
+    }
+
+    private Button[] LoadBoardButtons()
+    {
+        var buttons = new Button[Position.BoardSize * Position.BoardSize];
+
+        for (var index = 0; index < buttons.Length; index++)
         {
-            InitializeComponent();
-
-            player = 1;
-            of_all();
-            on_all();
-            int a = 0;
-            bool ch = false;
-
-            for (int i = 0; i <= 63; i = i + 1)
+            var button = Controls.Find($"button{index}", true).FirstOrDefault() as Button;
+            if (button is null)
             {
-                var button = Controls.Find("button" + i, true).FirstOrDefault() as Button;
-                button.Click += new EventHandler(my_hid);
-            }
-            for (int i = 0; i <= 63; i = i + 2)
-            {
-                a++;
-                var button = Controls.Find("button" + i, true).FirstOrDefault() as Button;
-
-                button.BackColor = Color.Gray;
-                if (a == 4)
-                {
-                    if (!ch)
-                    {
-                        i++;
-                        ch = true;
-                    }
-                    else
-                    {
-                        i--;
-                        ch = false;
-                    }
-                    a = 0;
-
-                }
-
-
+                throw new InvalidOperationException($"Board button button{index} was not found in the form.");
             }
 
+            buttons[index] = button;
         }
 
-        private void clear_table()
+        return buttons;
+    }
+
+    private void ConfigureBoardButtons()
+    {
+        for (var index = 0; index < _boardButtons.Length; index++)
         {
-            for (int i = 0; i <= 63; i = i + 1)
-            {
-                var button = Controls.Find("button" + i, true).FirstOrDefault() as Button;
-
-                button.BackColor = Color.White;
-            }
-            int a = 0;
-            bool ch = false;
-            for (int i = 0; i <= 63; i = i + 2)
-            {
-                a++;
-                var button = Controls.Find("button" + i, true).FirstOrDefault() as Button;
-
-                button.BackColor = Color.Gray;
-                if (a == 4)
-                {
-                    if (!ch)
-                    {
-                        i++;
-                        ch = true;
-                    }
-                    else
-                    {
-                        i--;
-                        ch = false;
-                    }
-                    a = 0;
-
-                }
-            }
+            var button = _boardButtons[index];
+            button.Tag = index;
+            button.UseVisualStyleBackColor = false;
+            button.FlatStyle = FlatStyle.Flat;
+            button.FlatAppearance.BorderSize = 1;
+            button.Font = new Font("Segoe UI", 15F, FontStyle.Bold, GraphicsUnit.Point);
+            button.TextAlign = ContentAlignment.MiddleCenter;
+            button.Click += BoardCell_Click;
         }
-        private void is_white()
+    }
+
+    private void BoardCell_Click(object? sender, EventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not int index)
         {
-
-
-            int index = 0;
-            for (int i = 0; i < 8; i++)
-            {
-                for (int j = 0; j < 8; j++)
-                {
-                    if (map[i, j] != 1 || map[i, j] != 3)
-                    {
-                        index = i * 8 + j;
-                        var button = Controls.Find("button" + index, true).FirstOrDefault() as Button;
-                        button.Enabled = false;
-                    }
-                }
-            }
-
-        }
-        private void is_black()
-        {
-            int index = 0;
-            for (int i = 0; i < 8; i++)
-            {
-                for (int j = 0; j < 8; j++)
-                {
-                    if (map[i, j] != 2 || map[i, j] != 4)
-                    {
-                        index = i * 8 + j;
-                        var button = Controls.Find("button" + index, true).FirstOrDefault() as Button;
-                        button.Enabled = false;
-                    }
-                }
-            }
-        }
-        private void on_all()
-        {
-            int ii, jj;
-            for (int i = 0; i <= 63; i = i + 1)
-            {
-                ii = i / 8;
-                jj = i % 8;
-                var button = Controls.Find("button" + i, true).FirstOrDefault() as Button;
-                if (map[ii, jj] == 3 && player == 1)
-                {
-                    button.Enabled = true;
-                }
-                if (map[ii, jj] == 4 && player == 2)
-                {
-                    button.Enabled = true;
-                }
-                if (map[ii, jj] == player)
-                {
-                    button.Enabled = true;
-                }
-
-            }
-        }
-        private void of_all()
-        {
-            for (int i = 0; i <= 63; i = i + 1)
-            {
-
-                var button = Controls.Find("button" + i, true).FirstOrDefault() as Button;
-
-                button.Enabled = false;
-
-            }
-        }
-        private void hide_all()
-        {
-            for (int i = 0; i <= 63; i++)
-            {
-                var button = Controls.Find("button" + i, true).FirstOrDefault() as Button;
-                if (button != null)
-                {
-                    button.BackColor = SystemColors.Control;
-                }
-            }
-        }
-        private void set_hid_white(int ii, int jj, int num)
-        {
-            if (jj - 1 != -1 && num <= 63 && num >= 0)
-            {
-
-                var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-
-                button.BackColor = Color.White;
-                button.Enabled = false;
-                num = (ii + 1) * 8 + (jj + 1);
-
-
-            }
-            if (jj + 1 != 8 && num <= 63 && num >= 0)
-            {
-                var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                button.BackColor = Color.White;
-                button.Enabled = false;
-            }
-            on_all();
-        }
-        private void set_hid_blask(int ii, int jj, int num)
-        {
-            if (jj - 1 != -1 && num <= 63 && num >= 0)
-            {
-                var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-
-                button.BackColor = Color.White;
-                button.Enabled = false;
-                num = (ii - 1) * 8 + (jj + 1);
-
-            }
-            if (jj + 1 != 8 && num <= 63 && num >= 0)
-            {
-                var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                button.BackColor = Color.White;
-                button.Enabled = false;
-            }
-            on_all();
+            return;
         }
 
-        private void my_hid(object sender, EventArgs e)
+        HandleBoardClick(Position.FromIndex(index));
+    }
+
+    private void HandleBoardClick(Position position)
+    {
+        if (_game.IsFinished)
         {
+            return;
+        }
 
-
-            on_clicked = p;
-            for (int i = 0; i <= 63; i = i + 1)
+        var selectedMove = _selectedMoves.FirstOrDefault(move => move.To == position);
+        if (_selectedPosition.HasValue && selectedMove is not null)
+        {
+            if (_game.ApplyMove(selectedMove))
             {
-                var button = Controls.Find("button" + i, true).FirstOrDefault() as Button;
-                if (button == sender)
+                if (_game.IsFinished)
                 {
-                    p = i;
-                    break;
+                    ClearSelection();
+                    SetStatus($"Победа: {ColorText(_game.Winner!.Value)}");
+                }
+                else if (_game.ForcedCapturePiece.HasValue)
+                {
+                    SelectPiece(_game.ForcedCapturePiece.Value);
+                    SetStatus($"Продолжите взятие: {ColorText(_game.CurrentPlayer)}");
+                }
+                else
+                {
+                    ClearSelection();
+                    SetStatus($"Ход: {ColorText(_game.CurrentPlayer)}");
                 }
             }
 
-            int ii = p / 8, jj = p % 8;
-           // label1.Text = map[ii, jj].ToString();
-            if (map[ii, jj] == 3 || map[ii, jj] == 4)
+            Render();
+            return;
+        }
+
+        var piece = _game.Board.GetPiece(position);
+        var selectable = _game.GetSelectablePieces();
+        if (piece.HasValue && piece.Value.Color == _game.CurrentPlayer && selectable.Contains(position))
+        {
+            SelectPiece(position);
+
+            var captureOnly = _selectedMoves.Any(static move => move.IsCapture);
+            SetStatus(captureOnly
+                ? $"Выбрана фигура: обязательное взятие ({_selectedMoves.Count} вариантов)"
+                : $"Выбрана фигура: доступно ходов {_selectedMoves.Count}");
+        }
+        else
+        {
+            ClearSelection();
+            SetStatus($"Ход: {ColorText(_game.CurrentPlayer)}");
+        }
+
+        Render();
+    }
+
+    private void SelectPiece(Position position)
+    {
+        _selectedPosition = position;
+        _selectedMoves = _game.GetLegalMoves(position).ToList();
+    }
+
+    private void ClearSelection()
+    {
+        _selectedPosition = null;
+        _selectedMoves = new List<Move>();
+    }
+
+    private void Render()
+    {
+        RenderBoard();
+        HighlightLegalState();
+    }
+
+    private void RenderBoard()
+    {
+        for (var row = 0; row < Position.BoardSize; row++)
+        {
+            for (var column = 0; column < Position.BoardSize; column++)
             {
+                var position = new Position(row, column);
+                var button = _boardButtons[position.ToIndex()];
 
-                int iii = ii, jjj = jj;
-                can_quween_eat(ii, jj);
-                if (!try_to_qwn_beat)
-                {
-                    while (iii >0 && jjj < 7)
-                    {
-                        iii--;
-                        jjj++;
-                        if (map[iii, jjj] != 0)
-                        {
-                            break;
-                        }
+                var isDarkSquare = (row + column) % 2 == 1;
+                button.BackColor = isDarkSquare ? DarkSquareColor : LightSquareColor;
+                button.FlatAppearance.BorderSize = 1;
+                button.FlatAppearance.BorderColor = isDarkSquare
+                    ? Color.FromArgb(81, 52, 29)
+                    : Color.FromArgb(208, 191, 150);
 
-                        int num = (iii) * 8 + jjj;
-                        if (num <= 63 && num >= 0 && map[iii, jjj] != 1 && map[iii, jjj] != 2 && map[iii, jjj] != 3 && map[iii, jjj] != 4)
-                        {
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.Enabled = true;
-                            button.BackColor = Color.Yellow;
-                        }
-                        
-                    }
-                    iii = ii;
-                    jjj = jj;
-                    while (iii >0 && jjj > 0)
-                    {
-                        iii--;
-                        jjj--;
-                        if (map[iii, jjj] != 0)
-                        {
-                            break;
-                        }
-
-                        int num = (iii) * 8 + jjj;
-                        if (num <= 63 && num >= 0 && map[iii, jjj] != 1 && map[iii, jjj] != 2 && map[iii, jjj] != 3 && map[iii, jjj] != 4)
-                        {
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.Enabled = true;
-                            button.BackColor = Color.Yellow;
-                        }
-                       
-                    }
-                    iii = ii;
-                    jjj = jj;
-                    while (iii <7 && jjj > 0)
-                    {
-                        iii++;
-                        jjj--;
-                        if (map[iii, jjj] != 0)
-                        {
-                            break;
-                        }
-
-                        int num = (iii) * 8 + jjj;
-                        if (num <= 63 && num >= 0 && map[iii, jjj] != 1 && map[iii, jjj] != 2 && map[iii, jjj] != 3 && map[iii, jjj] != 4)
-                        {
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.Enabled = true;
-                            button.BackColor = Color.Yellow;
-                        }
-                       
-                    }
-                    iii = ii;
-                    jjj = jj;
-                    while (iii <7 && jjj < 7)
-                    {
-                        iii++;
-                        jjj++;
-                        if (map[iii, jjj] != 0)
-                        {
-                            break;
-                        }
-
-                        int num = (iii) * 8 + jjj;
-                        if (num <= 63 && num >= 0 && map[iii, jjj] != 1 && map[iii, jjj] != 2 && map[iii, jjj] != 3 && map[iii, jjj] != 4)
-                        {
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.Enabled = true;
-                            button.BackColor = Color.Yellow;
-                        }
-                       
-                    }
-                }
-             
-            }
-            else
-            if (map[ii, jj] == 0)
-            {
-                int hi = on_clicked / 8, hj = on_clicked % 8;
-                if (map[hi, hj] == 3)
-                {
-
-                }
-                is_queen(p);
-                clear_table();
-
-                if (try_to_beat)
-                {
-                    var button3 = Controls.Find("button" + p, true).FirstOrDefault() as Button;
-                    button3.Enabled = false;
-                    MyChange(on_clicked, p, player);
-
-                    int iii = (ii + on_clicked / 8) / 2;
-                    int jjj = (jj + on_clicked % 8) / 2;
-                    map[iii, jjj] = 0;
-                    int numbers = (iii) * 8 + jjj;
-                    var buttons = Controls.Find("button" + numbers, true).FirstOrDefault() as Button;
-                    buttons.Image = null;
-
-
-
-                    if (first_eat(p, ii, jj, player) == true)
-                    {
-                        var button2 = Controls.Find("button" + on_clicked, true).FirstOrDefault() as Button;
-                        button2.Image = null;
-                      button2 = Controls.Find("button" + p, true).FirstOrDefault() as Button;
-                        if (player == 1)
-                            button2.Image = Properties.Resources.white;
-                        else
-                            button2.Image = Properties.Resources.black;
-                        return;
-
-
-                    }
-                }
-                var button = Controls.Find("button" + on_clicked, true).FirstOrDefault() as Button;
+                button.ForeColor = Color.Black;
                 button.Image = null;
-                MyChange(on_clicked, p, player);
+                button.Text = string.Empty;
 
-
-                button = Controls.Find("button" + p, true).FirstOrDefault() as Button;
-                if (player == 1)
-                    button.Image = Properties.Resources.white;
-                else
-                    button.Image = Properties.Resources.black;
-                if (player == 1) { player = 2; }
-                else
+                var piece = _game.Board.GetPiece(position);
+                if (!piece.HasValue)
                 {
-                    player = 1;
+                    continue;
                 }
 
-                of_all();
-                on_all();
-                int num = (ii) * 8 + (jj);
-                button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                button.BackColor = Color.White;
-                button.Enabled = false;
-                if (jj + 2 <= 7)
+                button.Image = piece.Value.Color == PieceColor.White
+                    ? Properties.Resources.white
+                    : Properties.Resources.black;
+
+                if (piece.Value.Kind == PieceKind.King)
                 {
-                    num = (ii) * 8 + (jj + 2);
-                    button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                    button.BackColor = Color.White;
-                    button.Enabled = false;
-
-                }
-                if (jj - 2 >= 0)
-                {
-                    num = (ii) * 8 + (jj - 2);
-                    button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                    button.BackColor = Color.White;
-                    button.Enabled = false;
-
-                }
-                on_all();
-            }
-            else
-            {
-                if (p == on_clicked)
-                {
-                    on_all();
-
-                    if (player == 1)
-                    {
-                        int num = (ii + 1) * 8 + (jj - 1);
-                        set_hid_white(ii, jj, num);
-                        p = 1;
-                    }
-                  else
-                    {
-                        int num = (ii - 1) * 8 + (jj - 1);
-                        set_hid_blask(ii, jj, num);
-                        p = 1;
-                    }
-
-                }
-                else
-                {
-                    of_all();
-
-                    var button1 = Controls.Find("button" + p, true).FirstOrDefault() as Button;
-                    button1.Enabled = true;
-                    //label1.Text = ii.ToString() + jj.ToString();
-
-
-
-                    if (map[ii, jj] == 1)
-                    {
-
-                        if (jj - 1 != -1 && ii != 7)
-                        {
-
-                            if (map[ii + 1, jj - 1] != 1 && map[ii + 1, jj - 1] != 2)
-                            {
-                                int num = (ii + 1) * 8 + (jj - 1);
-
-                                var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                button.BackColor = Color.Yellow;
-                                button.Enabled = true;
-
-                            }
-                        }
-                        if (jj + 1 != 8 && ii != 7)
-                        {
-                            if (map[ii + 1, jj + 1] != 1 && map[ii + 1, jj + 1] != 2)
-                            {
-                                int num = (ii + 1) * 8 + (jj + 1);
-
-                                var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                button.BackColor = Color.Yellow;
-                                button.Enabled = true;
-                            }
-                        }
-                    }
-
-
-                    if (map[ii, jj] == 2)
-                    {
-                        // label1.Text = ii.ToString() + jj.ToString();
-
-
-                        if (jj != 0 && ii != 0)
-                        {
-
-                            if (map[ii - 1, jj - 1] != 1 && map[ii - 1, jj - 1] != 2)
-                            {
-                                int num = (ii - 1) * 8 + (jj - 1);
-
-                                var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                button.BackColor = Color.Yellow;
-                                button.Enabled = true;
-                            }
-                        }
-                        if (jj != 7 && ii != 0)
-                        {
-                            if (map[ii - 1, jj + 1] != 1 && map[ii - 1, jj + 1] != 2)
-                            {
-                                int num = (ii - 1) * 8 + (jj + 1);
-
-                                var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                button.BackColor = Color.Yellow;
-                                button.Enabled = true;
-                            }
-                        }
-                    }
-
-
-
-
-
-
-
-
-
-                }
-
-
-
-                /// 
-
-
-            }
-            can_eat();
-            first_eat(p, ii, jj, player);
-        }
-
-
-
-
-
-        private void MyChange(int a, int chislo, int playerred)
-        {
-            int ii = a / 8, jj = a % 8;
-            if (playerred == 1 && map[ii, jj] == 3)
-            {
-                int iii = chislo / 8;
-                int jjj = chislo % 8;
-                map[iii, jjj] = 3;
-                int num1 = (iii) * 8 + (jjj);
-                var button = Controls.Find("button" + num1, true).FirstOrDefault() as Button;
-                button.Text = "Q";
-            }
-            if (playerred == 2 && map[ii, jj] == 4)
-            {
-                int iii = chislo / 8;
-                int jjj = chislo % 8;
-                map[iii, jjj] = 4;
-                int num1 = (iii) * 8 + (jjj);
-                var button = Controls.Find("button" + num1, true).FirstOrDefault() as Button;
-                button.Text = "Q";
-            }
-            map[ii, jj] = 0;
-            int num = (ii) * 8 + (jj);
-            var buttons = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-            buttons.Text = "";
-            ii = chislo / 8;
-            jj = chislo % 8;
-            if (playerred == 1 && map[ii, jj] != 3 && map[ii, jj] != 4)
-            {
-                map[ii, jj] = 1;
-
-
-            }
-
-            if (playerred == 2 && map[ii, jj] != 3 && map[ii, jj] != 4)
-            {
-                map[ii, jj] = 2;
-
-
-            }
-
-
-
-
-
-        }
-
-
-
-        private void can_eat()
-        {
-            bool evl = false;
-            for (int ii = 0; ii < 8; ii++)
-            {
-                for (int jj = 0; jj < 8; jj++)
-                {
-                    if (player == 2 && map[ii, jj] == 2)
-                    {
-
-                        if (jj - 1 != -1 && ii != 7 && jj != 1 & ii != 6)
-                        {
-                            if (map[ii + 1, jj - 1] == 1)
-                            {
-                                if (map[ii + 2, jj - 2] == 0)
-                                {
-                                    if (evl == false)
-                                    {
-                                        of_all();
-                                        evl = true;
-
-                                    }
-                                    int num = (ii) * 8 + (jj);
-
-                                    var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                    button.Enabled = true;
-                                }
-                            }
-                        }
-                        if (jj + 1 != 8 && ii != 7 && jj != 6 && ii != 6)
-                        {
-                            if (map[ii + 1, jj + 1] == 1)
-                            {
-                                if (map[ii + 2, jj + 2] == 0)
-                                {
-
-                                    if (evl == false)
-                                    {
-                                        of_all();
-                                        evl = true;
-
-                                    }
-                                    int num = (ii) * 8 + (jj);
-
-                                    var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                    button.Enabled = true;
-                                }
-                            }
-                        }
-
-                        if (jj != 6 && ii != 1 && jj != 7 && ii != 0)
-                        {
-                            if (map[ii - 1, jj + 1] == 1)
-                            {
-                                if (map[ii - 2, jj + 2] == 0)
-                                {
-                                    if (evl == false)
-                                    {
-                                        of_all();
-                                        evl = true;
-
-                                    }
-                                    int num = (ii) * 8 + (jj);
-
-                                    var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                    button.Enabled = true;
-                                }
-                            }
-
-                        }
-
-
-                        if (jj != 1 && ii != 1 && jj != 0 && ii != 0)
-                        {
-                            if (map[ii - 1, jj - 1] == 1)
-                            {
-
-                                if (map[ii - 2, jj - 2] == 0)
-                                {
-                                    if (evl == false)
-                                    {
-                                        of_all();
-                                        evl = true;
-
-                                    }
-                                    int num = (ii) * 8 + (jj);
-
-                                    var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                    button.Enabled = true;
-
-                                }
-                            }
-                        }
-
-
-                    }
-                    else if (player == 1 && map[ii, jj] == 1)
-                    {
-
-                        if (jj != 6 && ii != 1 && jj != 7 && ii != 0)
-                        {
-                            if (map[ii - 1, jj + 1] == 2)
-                            {
-                                if (map[ii - 2, jj + 2] == 0)
-                                {
-                                    if (evl == false)
-                                    {
-                                        of_all();
-                                        evl = true;
-
-                                    }
-                                    int num = (ii) * 8 + (jj);
-
-                                    var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                    button.Enabled = true;
-                                }
-                            }
-
-                        }
-
-
-                        if (jj != 1 && ii != 1 && jj != 0 && ii != 0)
-                        {
-                            if (map[ii - 1, jj - 1] == 2)
-                            {
-
-                                if (map[ii - 2, jj - 2] == 0)
-                                {
-                                    if (evl == false)
-                                    {
-                                        of_all();
-                                        evl = true;
-
-                                    }
-                                    int num = (ii) * 8 + (jj);
-
-                                    var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                    button.Enabled = true;
-
-                                }
-                            }
-                        }
-
-                        if (jj - 1 != -1 && ii != 7 && jj != 1 & ii != 6)
-                        {
-                            if (map[ii + 1, jj - 1] == 2)
-                            {
-                                if (map[ii + 2, jj - 2] == 0)
-                                {
-                                    if (evl == false)
-                                    {
-                                        of_all();
-                                        evl = true;
-
-                                    }
-                                    int num = (ii) * 8 + (jj);
-
-                                    var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                    button.Enabled = true;
-                                }
-                            }
-                        }
-                        if (jj + 1 != 8 && ii != 7 && jj != 6 && ii != 6)
-                        {
-                            if (map[ii + 1, jj + 1] == 2)
-                            {
-                                if (map[ii + 2, jj + 2] == 0)
-                                {
-
-                                    if (evl == false)
-                                    {
-                                        of_all();
-                                        evl = true;
-
-                                    }
-                                    int num = (ii) * 8 + (jj);
-
-                                    var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                                    button.Enabled = true;
-                                }
-                            }
-                        }
-                    }
-
+                    button.Text = "K";
+                    button.ForeColor = piece.Value.Color == PieceColor.White ? Color.Black : Color.White;
                 }
             }
         }
-        private bool first_eat(int a, int ii, int jj, int playerrd)
+    }
+
+    private void HighlightLegalState()
+    {
+        foreach (var position in _game.GetSelectablePieces())
         {
-
-
-
-            try_to_beat = false;
-            if (playerrd == 2 && map[ii, jj] == 2)
-            {
-                if (jj != 6 && ii != 1 && jj != 7 && ii != 0)
-                {
-                    if (map[ii - 1, jj + 1] == 1)
-                    {
-                        if (map[ii - 2, jj + 2] == 0)
-                        {
-                            int num = (ii - 2) * 8 + (jj + 2);
-
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.Yellow;
-                            button.Enabled = true;
-                            try_to_beat = true;
-
-
-
-
-
-                            num = (ii - 1) * 8 + (jj - 1);
-
-                            button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.White;
-                        }
-                    }
-
-                }
-
-
-                if (jj != 1 && ii != 1 && jj != 0 && ii != 0)
-                {
-                    if (map[ii - 1, jj - 1] == 1)
-                    {
-
-                        if (map[ii - 2, jj - 2] == 0)
-                        {
-                            int num = (ii - 2) * 8 + (jj - 2);
-
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.Yellow;
-                            button.Enabled = true;
-                            try_to_beat = true;
-
-
-
-
-
-                            num = (ii - 1) * 8 + (jj + 1);
-
-                            button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.White;
-
-
-                        }
-                    }
-                }
-                if (jj != 0 && ii != 7 && jj != 1 && ii != 6)
-                {
-                    if (map[ii + 1, jj - 1] == 1)
-                    {
-                        if (map[ii + 2, jj - 2] == 0)
-                        {
-                            int num = (ii + 2) * 8 + (jj - 2);
-
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.Yellow;
-                            button.Enabled = true;
-                            try_to_beat = true;
-
-
-
-                            num = (ii + 1) * 8 + (jj + 1);
-
-                            button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.White;
-
-
-                        }
-                    }
-                }
-                if (jj + 1 != 8 && ii != 7 && jj != 6 && ii != 6)
-                {
-                    if (map[ii + 1, jj + 1] == 1)
-                    {
-                        if (map[ii + 2, jj + 2] == 0)
-                        {
-                            int num = (ii + 2) * 8 + (jj + 2);
-
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.Yellow;
-                            button.Enabled = true;
-                            try_to_beat = true;
-
-
-
-
-                            num = (ii + 1) * 8 + (jj - 1);
-
-                            button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.White;
-                        }
-                    }
-                }
-
-            }
-            else if (playerrd == 1 && map[ii, jj] == 1)
-            {
-
-                if (jj != 6 && ii != 1 && jj != 7 && ii != 0)
-                {
-                    if (map[ii - 1, jj + 1] == 2)
-                    {
-                        if (map[ii - 2, jj + 2] == 0)
-                        {
-                            int num = (ii - 2) * 8 + (jj + 2);
-
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.Yellow;
-                            button.Enabled = true;
-                            try_to_beat = true;
-
-
-
-
-
-                            num = (ii - 1) * 8 + (jj - 1);
-
-                            button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.White;
-                        }
-                    }
-
-                }
-
-
-                if (jj != 1 && ii != 1 && jj != 0 && ii != 0)
-                {
-                    if (map[ii - 1, jj - 1] == 2)
-                    {
-
-                        if (map[ii - 2, jj - 2] == 0)
-                        {
-                            int num = (ii - 2) * 8 + (jj - 2);
-
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.Yellow;
-                            button.Enabled = true;
-                            try_to_beat = true;
-
-
-
-
-
-                            num = (ii - 1) * 8 + (jj + 1);
-
-                            button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.White;
-
-
-                        }
-                    }
-                }
-                if (jj != 0 && ii != 7 && jj != 1 && ii != 6)
-                {
-                    if (map[ii + 1, jj - 1] == 2)
-                    {
-                        if (map[ii + 2, jj - 2] == 0)
-                        {
-                            int num = (ii + 2) * 8 + (jj - 2);
-
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.Yellow;
-                            button.Enabled = true;
-                            try_to_beat = true;
-                            num = (ii + 1) * 8 + (jj + 1);
-
-                            button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.White;
-
-
-                        }
-                    }
-                }
-                if (jj + 1 != 8 && ii != 7 && jj != 6 && ii != 6)
-                {
-                    if (map[ii + 1, jj + 1] == 2)
-                    {
-                        if (map[ii + 2, jj + 2] == 0)
-                        {
-                            int num = (ii + 2) * 8 + (jj + 2);
-
-                            var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.Yellow;
-                            button.Enabled = true;
-                            try_to_beat = true;
-
-
-
-
-                            num = (ii + 1) * 8 + (jj - 1);
-
-                            button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                            button.BackColor = Color.White;
-                        }
-                    }
-                }
-            }
-
-  return try_to_beat;
+            var button = _boardButtons[position.ToIndex()];
+            button.FlatAppearance.BorderSize = 3;
+            button.FlatAppearance.BorderColor = SelectableBorderColor;
         }
 
-        private bool is_queen(int num)
+        if (!_selectedPosition.HasValue)
         {
-            if ((num >= 0 && num <= 7) || (num >= 56 && num <= 63)) {
-                var button = Controls.Find("button" + num, true).FirstOrDefault() as Button;
-                button.Text = "D";
-                int ii = num / 8, jj = num % 8;
-       
-                if (player == 1)
-                {
-                    map[ii, jj] = 3;
-                } else if (player == 2)
-                {
-                    map[ii, jj] = 4;
-                }
-                return true;
-            }
-            return false;
+            return;
         }
 
+        var selectedButton = _boardButtons[_selectedPosition.Value.ToIndex()];
+        selectedButton.FlatAppearance.BorderSize = 4;
+        selectedButton.FlatAppearance.BorderColor = SelectedBorderColor;
 
-        private void can_quween_eat(int ii, int jj)
+        foreach (var move in _selectedMoves)
         {
-
-            try_to_qwn_beat = false;
-
-
-
-            int iii = ii, jjj = jj;
-            while (iii >0 && jjj < 7)
-            {
-
-                int num = (iii) * 8 + jjj;
-                if (num <= 63 && num >= 0)
-                {
-                    if ((player == 2 && (map[iii, jjj] == 1 || map[iii, jjj] == 3)) || ((player == 1 && (map[iii, jjj] == 2 || map[iii, jjj] == 4))))
-                    {
-                        label1.Text = iii.ToString() + " " + jjj.ToString();
-                        if (map[iii - 1, jjj + 1] == 0 && (map[iii + 1, jjj - 1] == 0 || (iii + 1 == ii && jjj - 1 == jj)))
-                        {
-                            // label1.Text = iii.ToString() + " " + jjj.ToString();
-                            while (iii >= 1 && jjj <= 6)
-                            {
-
-                                iii--;
-                                jjj++;
-                                if (map[iii, jjj] != 0) { break; }
-                                int num1 = (iii) * 8 + jjj;
-                                var button = Controls.Find("button" + num1, true).FirstOrDefault() as Button;
-                                button.Enabled = true;
-                                button.BackColor = Color.Yellow;
-
-                            }
-                            try_to_qwn_beat = true;
-                                break;
-                        }
-                    }
-                }
-                iii--;
-                jjj++;
-
-            }
-        
-
-
-
-
-
-
-
-            iii = ii;
-            jjj = jj;
-            while (iii > 0 && jjj > 0)
-            {
-
-
-                int num = (iii) * 8 + jjj;
-                if (num <= 63 && num >= 0)
-                {
-                    if ((player == 2 && (map[iii, jjj] == 1 || map[iii, jjj] == 3)) || ((player == 1 && (map[iii, jjj] == 2 || map[iii, jjj] == 4))))
-                    {
-                        label1.Text = iii.ToString() + " " + jjj.ToString();
-                        if (map[iii - 1, jjj - 1] == 0 && (map[iii + 1, jjj + 1] == 0 || (iii + 1 == ii && jjj + 1 == jj)))
-                        {
-                            // label1.Text = iii.ToString() + " " + jjj.ToString();
-                            while (iii >= 1 && jjj >= 1)
-                            {
-
-                                iii--;
-                                jjj--;
-                                if (map[iii, jjj] != 0) { break; }
-                                int num1 = (iii) * 8 + jjj;
-                                var button = Controls.Find("button" + num1, true).FirstOrDefault() as Button;
-                                button.Enabled = true;
-                                button.BackColor = Color.Yellow;
-
-                            }
-                            try_to_qwn_beat = true;
-                            break;
-                        }
-                    }
-                }
-                iii--;
-                jjj--;
-
-            
+            var targetButton = _boardButtons[move.To.ToIndex()];
+            targetButton.BackColor = TargetSquareColor;
+            targetButton.FlatAppearance.BorderSize = 3;
+            targetButton.FlatAppearance.BorderColor = SelectedBorderColor;
         }
-            iii = ii;
-            jjj = jj;
-            while (iii < 7 && jjj > 0)
-            {
-                int num = (iii) * 8 + jjj;
-                if (num <= 63 && num >= 0)
-                {
-                    if ((player == 2 && (map[iii, jjj] == 1 || map[iii, jjj] == 3)) || ((player == 1 && (map[iii, jjj] == 2 || map[iii, jjj] == 4))))
-                    {
-                        label1.Text = iii.ToString() + " " + jjj.ToString();
-                        if (map[iii + 1, jjj - 1] == 0 && (map[iii - 1, jjj + 1] == 0 || (iii - 1 == ii && jjj + 1 == jj)))
-                        {
-                            // label1.Text = iii.ToString() + " " + jjj.ToString();
-                            while (iii <= 6 && jjj >= 1)
-                            {
+    }
 
-                                iii++;
-                                jjj--;
-                                if (map[iii, jjj] != 0) { break; }
-                                int num1 = (iii) * 8 + jjj;
-                                var button = Controls.Find("button" + num1, true).FirstOrDefault() as Button;
-                                button.Enabled = true;
-                                button.BackColor = Color.Yellow;
+    private void SetStatus(string text)
+    {
+        label1.Text = text;
+    }
 
-                            }
-                            try_to_qwn_beat = true;
-                            break;
-                        }
-                    }
-                }
-                iii++;
-                jjj--;
+    private static string ColorText(PieceColor color)
+    {
+        return color == PieceColor.White ? "белые" : "черные";
+    }
 
-            }
-        
-            iii = ii;
-            jjj = jj;
-           while (iii < 7 && jjj < 7)
-            {
+    private void button1_Click(object sender, EventArgs e)
+    {
+    }
 
-                int num = (iii) * 8 + jjj;
-                if (num <= 63 && num >= 0 )
-                {
-                    if ((player == 2 && (map[iii, jjj] == 1 || map[iii, jjj] == 3)) || ((player == 1 && (map[iii, jjj] == 2 || map[iii, jjj] == 4)) ))
-                    {
-                        label1.Text = iii.ToString() + " " + jjj.ToString();
-                        if (map[iii + 1, jjj + 1] == 0 && (map[iii - 1, jjj - 1] == 0 || (iii - 1 == ii && jjj - 1 == jj)))
-                        {
-                           // label1.Text = iii.ToString() + " " + jjj.ToString();
-                            while (iii <= 6 && jjj <= 6)
-                            {
-                               
-                                iii++;
-                                jjj++;
-                                if (map[iii, jjj] != 0) { break; }
-                                int num1 = (iii) * 8 + jjj;
-                                var button = Controls.Find("button" + num1, true).FirstOrDefault() as Button;
-                                button.Enabled = true;
-                                button.BackColor = Color.Yellow;
+    private void button10_Click(object sender, EventArgs e)
+    {
+    }
 
-                            }
-                            try_to_qwn_beat = true;
-                            break;
-                        }
-                    }
-                }
-                    iii++;
-                    jjj++;
-                
-            }
-        } 
+    private void Form1_Load(object sender, EventArgs e)
+    {
+    }
 
+    private void button48_Click(object sender, EventArgs e)
+    {
+    }
 
-    
-      /*  private bool second_eat(int ii, int jj)
-        {
+    private void button49_Click(object sender, EventArgs e)
+    {
+    }
 
-            return true;
+    private void button40_Click(object sender, EventArgs e)
+    {
+    }
 
+    private void button15_Click(object sender, EventArgs e)
+    {
+    }
 
-        }*/
-        private void button1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button10_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void Form1_Load(object sender, EventArgs e)
-        {
-        }
-
-        private void button48_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button49_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button40_Click(object sender, EventArgs e)
-        {
-
-            Image image = Properties.Resources.black;
-
-            button40.Image = image;
-            //button40.Image = null;
-        }
-
-        private void button15_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button12_Click(object sender, EventArgs e)
-        {
-
-        }
+    private void button12_Click(object sender, EventArgs e)
+    {
     }
 }
